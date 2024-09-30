@@ -18,7 +18,7 @@ public class SqsSourceTask extends SourceTask {
 
     private SqsClient sqsClient;
     private String queueUrl;
-    private String kafkaTopic;  // El tema de Kafka será configurable
+    private String kafkaTopics;
 
     @Override
     public String version() {
@@ -31,16 +31,14 @@ public class SqsSourceTask extends SourceTask {
         String secretKey = props.get(SqsConnectorConfig.AWS_SECRET_KEY);
         String region = props.get(SqsConnectorConfig.AWS_REGION);
         String queueName = props.get(SqsConnectorConfig.SQS_QUEUE_NAME);
-        kafkaTopic = props.get("topic");  // Lee el tema de Kafka desde las propiedades de configuración
+        kafkaTopics = props.get(SqsConnectorConfig.KAFKA_TOPICS);  // Lista de tópicos de Kafka
 
-        // Configurar el cliente SQS con credenciales opcionales
         if (accessKey != null && secretKey != null) {
             sqsClient = SqsClient.builder()
                     .region(Region.of(region))
                     .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)))
                     .build();
         } else {
-            // Usa el proveedor de credenciales predeterminado de AWS si no se proporcionan las credenciales
             sqsClient = SqsClient.builder()
                     .region(Region.of(region))
                     .credentialsProvider(DefaultCredentialsProvider.create())
@@ -54,29 +52,26 @@ public class SqsSourceTask extends SourceTask {
     public List<SourceRecord> poll() throws InterruptedException {
         List<SourceRecord> records = new ArrayList<>();
 
-        // Recibir mensajes desde la cola SQS
         ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder()
                 .queueUrl(queueUrl)
-                .maxNumberOfMessages(10)  // El número máximo de mensajes a recibir
-                .waitTimeSeconds(20)       // Espera hasta 20 segundos para recibir un mensaje
+                .maxNumberOfMessages(10)
+                .waitTimeSeconds(20)
                 .build();
 
         List<Message> messages = sqsClient.receiveMessage(receiveMessageRequest).messages();
 
         for (Message message : messages) {
-            // Crear un registro de Kafka con los datos del mensaje de SQS
             SourceRecord record = new SourceRecord(
-                    null,  // No necesitamos particionar
-                    null,  // No hay un "offset" para la cola SQS
-                    kafkaTopic,  // Usamos el tema de Kafka configurado
-                    null,  // Tipo de partición
-                    null,  // Tipo de clave
-                    null,  // Clave (si es necesario)
-                    message.body()       // El cuerpo del mensaje será el valor del registro en Kafka
+                    null,
+                    null,
+                    kafkaTopics,  // Usar los tópicos de Kafka configurados
+                    null,
+                    null,
+                    null,
+                    message.body()
             );
             records.add(record);
 
-            // Eliminar el mensaje de la cola una vez que ha sido procesado
             sqsClient.deleteMessage(builder -> builder.queueUrl(queueUrl).receiptHandle(message.receiptHandle()));
         }
 
@@ -85,7 +80,6 @@ public class SqsSourceTask extends SourceTask {
 
     @Override
     public void stop() {
-        // Cierra el cliente de SQS
         if (sqsClient != null) {
             sqsClient.close();
         }

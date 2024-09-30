@@ -28,7 +28,6 @@ public class SqsSourceConnector extends SourceConnector {
 
     @Override
     public List<Map<String, String>> taskConfigs(int maxTasks) {
-        // Configuraciones para cada tarea
         return List.of(config.originalsStrings());
     }
 
