@@ -4,6 +4,7 @@ import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.sink.SinkConnector;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -13,7 +14,7 @@ public class SqsSinkConnector extends SinkConnector {
 
     @Override
     public String version() {
-        return "1.0";
+        return "1.2";
     }
 
     @Override
@@ -29,7 +30,12 @@ public class SqsSinkConnector extends SinkConnector {
     @Override
     public List<Map<String, String>> taskConfigs(int maxTasks) {
         // Pasar la configuración para las tareas
-        return List.of(config.originalsStrings());
+        List<Map<String, String>> configs = new ArrayList<>();
+        Map<String, String> originals = config.originalsStrings();
+        for (int i = 0; i < maxTasks; i++) {
+            configs.add(originals);
+        }
+        return configs;
     }
 
     @Override
